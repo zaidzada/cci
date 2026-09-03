@@ -147,7 +147,8 @@ def cmd_du(args):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog='cottoncandy',
-        description='Command line interface for cottoncandy.')
+        description='Command line interface for cottoncandy. '
+                    'Runs "lsdir" when no command is given.')
     parser.add_argument('-b', '--bucket', default=None,
                         help='Bucket to operate on. Defaults to "default_bucket" in your '
                              'cottoncandy config file.')
@@ -160,7 +161,7 @@ def build_parser():
     parser.add_argument('--secret-key', default=None,
                         help='Secret key (overrides config/environment)')
 
-    subparsers = parser.add_subparsers(dest='command', required=True)
+    subparsers = parser.add_subparsers(dest='command')
 
     sub = subparsers.add_parser('list', help='List available buckets')
     sub.set_defaults(func=cmd_list)
@@ -169,7 +170,8 @@ def build_parser():
     sub.add_argument('pattern', nargs='?', default='*')
     sub.set_defaults(func=cmd_ls)
 
-    sub = subparsers.add_parser('lsdir', help='List the immediate contents of a "directory"')
+    sub = subparsers.add_parser('lsdir',
+                                help='List the immediate contents of a "directory" (default command)')
     sub.add_argument('path', nargs='?', default='/')
     sub.set_defaults(func=cmd_lsdir)
 
@@ -234,6 +236,11 @@ def build_parser():
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command is None:
+        # No command given: behave like "lsdir" at the bucket root.
+        args.command = 'lsdir'
+        args.path = '/'
+        args.func = cmd_lsdir
     try:
         args.func(args)
     except SystemExit:
