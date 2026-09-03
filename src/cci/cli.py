@@ -4,6 +4,7 @@ Exposes the ``BasicInterface``/``FileSystemInterface`` functionality
 (``cottoncandy.get_interface()``) as a ``cottoncandy`` command line tool.
 """
 import argparse
+import json
 import os
 import sys
 
@@ -137,6 +138,19 @@ def cmd_download(args):
         print('Downloaded "%s" to "%s"' % (object_name, local_path))
 
 
+def cmd_cat(args):
+    cci = _get_interface(args)
+    _require_bucket(cci)
+    cci.exists_object(args.object_name, raise_err=True)
+
+    if args.json:
+        print(json.dumps(cci.download_json(args.object_name), indent=2))
+    else:
+        # Write bytes straight through, so binary objects survive a pipe.
+        sys.stdout.buffer.write(cci.download_object(args.object_name))
+        sys.stdout.buffer.flush()
+
+
 def cmd_du(args):
     cci = _get_interface(args)
     _require_bucket(cci)
@@ -232,6 +246,13 @@ def build_parser():
                      help='Download a whole subtree')
     sub.set_defaults(func=cmd_download)
 
+    sub = subparsers.add_parser('cat', help='Print the contents of an object to stdout')
+    sub.add_argument('bucket', help='Bucket to operate on')
+    sub.add_argument('object_name')
+    sub.add_argument('--json', action='store_true',
+                     help='Parse the object as JSON and pretty-print it')
+    sub.set_defaults(func=cmd_cat)
+
     sub = subparsers.add_parser('du', help='Show the total size of a bucket')
     sub.add_argument('bucket', help='Bucket to operate on')
     sub.set_defaults(func=cmd_du)
@@ -252,6 +273,11 @@ def main(argv=None):
         args.func(args)
     except SystemExit:
         raise
+    except BrokenPipeError:
+        # e.g. "cci cat big.json | head": the reader hung up, which is not an error.
+        # Point stdout at devnull so the interpreter does not complain on shutdown.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(0)
     except Exception as e:
         message = str(e) or '%s raised with no message' % type(e).__name__
         sys.exit('Error: %s' % message)
