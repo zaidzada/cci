@@ -2,6 +2,15 @@
 
 Command line interface for [cottoncandy](https://gallantlab.org/cottoncandy/).
 
+## Install
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+```
+uv tool install 'git+https://github.com/zaidzada/cci'
+cci list
+```
+
 ## Usage
 
 The bucket is the first argument of every bucket-scoped command:
